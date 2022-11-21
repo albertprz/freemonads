@@ -4,7 +4,7 @@ module FreeMonad where
 
 import Data.Maybe
 import Control.Monad.Free
-import Control.Monad.State.Lazy
+import Control.Monad.State
 import qualified Data.Map as Map
 import Data.Map
 
