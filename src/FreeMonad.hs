@@ -4,7 +4,7 @@ module FreeMonad where
 
 import Data.Maybe
 import Control.Monad.Free
-import Control.Monad.State
+import Control.Monad.State.Lazy
 import qualified Data.Map as Map
 import Data.Map
 
@@ -21,30 +21,30 @@ newtype AccountId = AccountId String deriving (Eq, Ord, Show)
 
 
 
-data BankAlgebraF next
+data BankAlgebra next
   = PerformTransaction AccountId Amount next
   | TopUpCard Amount next
   | CheckBalance (Amount -> next)
   deriving Functor
 
 
-type BankAlgebra = Free BankAlgebraF
+type BankProgram = Free BankAlgebra
 
 
 
 -- Primitives
 
-performTransaction :: AccountId -> Amount -> BankAlgebra ()
+performTransaction :: AccountId -> Amount -> BankProgram ()
 performTransaction a b = liftF (PerformTransaction a b ())
 
-topUpCard :: Amount -> BankAlgebra ()
+topUpCard :: Amount -> BankProgram ()
 topUpCard a = liftF (TopUpCard a ())
 
-checkBalance :: BankAlgebra Amount
+checkBalance :: BankProgram Amount
 checkBalance = liftF (CheckBalance id)
 
 
-performTransactionSafe :: AccountId -> Amount -> BankAlgebra Bool
+performTransactionSafe :: AccountId -> Amount -> BankProgram Bool
 performTransactionSafe account amount =
   do funds <- checkBalance
      if funds >= amount
@@ -52,7 +52,7 @@ performTransactionSafe account amount =
         else pure False
 
 
-topUpCardSafe :: Amount -> BankAlgebra Bool
+topUpCardSafe :: Amount -> BankProgram Bool
 topUpCardSafe amount =
   do funds <- checkBalance
      if funds >= amount
@@ -63,17 +63,16 @@ topUpCardSafe amount =
 
 -- Interpreter
 
-interpreter :: BankAlgebraF a -> State (Map AccountId Amount) a
-interpreter x =
-    case x of
+interpreter :: BankAlgebra a -> State (Map AccountId Amount) a
+interpreter x = case x of
 
       PerformTransaction account amount next ->
-        do _ <- modify (adjust (+| amount) account .
-                       adjust (-| amount) currentAcc)
+        do _ <- modify (Map.adjust (+| amount) account .
+                       Map.adjust (-| amount) currentAcc)
            pure next
 
       TopUpCard amount next ->
-        do _ <- modify (adjust (-| amount) currentAcc)
+        do _ <- modify (Map.adjust (-| amount) currentAcc)
            pure next
 
 
@@ -83,5 +82,3 @@ interpreter x =
 
    where
      currentAcc = AccountId "current_account"
-
-

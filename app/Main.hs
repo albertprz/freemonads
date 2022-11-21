@@ -17,14 +17,16 @@ result = foldFree interpreter program `runState`
                          (AccountId "GB67BARC20032647753595", Amount 0)]
 
 
-program :: BankAlgebra [String]
+program :: BankProgram [String]
 program = do
   success <- performTransactionSafe (AccountId "GB67BARC20032647753595")
                                    amountDue
   funds <- checkBalance
+
   success' <- if success && funds >= (amountDue +| amountTopUp)
              then topUpCardSafe amountTopUp
              else pure False
+
   pure [if success
         then "Completed transaction"
         else "Failed transaction. Need more funds",
